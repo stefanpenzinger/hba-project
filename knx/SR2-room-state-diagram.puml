@@ -1,0 +1,99 @@
+@startuml
+title SR2 Room State Diagram
+
+state "Blinds" as blinds {
+    state "Open" as blinds_open
+    state "Closed" as blinds_closed
+    state "Adjusting" as blinds_adjusting
+
+    [*] --> blinds_closed
+    blinds_closed --> blinds_open : Open Blinds
+    blinds_open --> blinds_closed : Close Blinds
+    blinds_open --> blinds_adjusting : Adjust Blinds
+    blinds_closed --> blinds_adjusting : Adjust Blinds
+    blinds_adjusting --> blinds_open : Blinds Opened
+    blinds_adjusting --> blinds_closed : Blinds Closed
+}
+
+state "IrradiationSensor" as irradiation_sensor {
+    state "No Irradiation" as no_irradiation
+    state "Low Irradiation" as low_irradiation
+    state "High Irradiation" as high_irradiation
+
+    [*] --> no_irradiation
+    no_irradiation --> low_irradiation : Sensor Detects Low Sunlight
+    low_irradiation --> high_irradiation : Sensor Detects High Sunlight
+    low_irradiation --> no_irradiation : Sensor No Sunlight
+    high_irradiation --> low_irradiation : Sensor Detects Low Sunlight
+}
+
+irradiation_sensor.low_irradiation --> lights.light_on : Turn On Lights Automatically
+irradiation_sensor.low_irradiation --> blinds.blinds_closed : Close Blinds Automatically
+irradiation_sensor.high_irradiation --> lights.light_off : Turn Off Lights Automatically
+irradiation_sensor.high_irradiation --> blinds.blinds_open : Open Blinds Automatically
+
+
+state "Light" as lights {
+    state "Off" as light_off
+    state "On" as light_on
+
+    light_off --> light_on : turn on
+    light_on --> light_off : turn off
+
+    [*] --> light_off
+}
+
+state "Presence Sensor" as presence {
+    state "No Presence" as no_presence: No one is in the room
+    state "Presence Detected" as presence_detected: People are in the room
+
+    presence_detected --> no_presence : Room Empty
+    no_presence --> presence_detected : Person Enters
+
+    [*] --> no_presence
+}
+
+no_presence --> lights.light_off : turn off lights
+
+state "HVAC" as hvac {
+    state "Monitoring the Room" as monitoring: Monitoring the room temperature and CO2
+    [*] --> monitoring
+    monitoring --> temperature : Watch Setpoints
+
+    state "HVAC System" as temperature {
+        state temperature_value <<choice>>
+        state "Heating" as heating: Room will be heated up until setpoint reached
+        state "Cooling" as cooling: Room will be cooled down until setpoint reached
+
+        [*] --> temperature_value
+        temperature_value --> heating : Indoor Temp < Setpoint
+        temperature_value --> cooling : Indoor Temp > Setpoint
+        temperature_value --> [*] : Indoor Temp = Setpoint
+        heating --> [*]: Heating Done
+        cooling --> [*]: Cooling Done
+
+        --
+
+        state co2_value <<choice>>
+        state "Ventilation" as ventilation: Room will be ventilated until setpoint reached
+        [*] --> co2_value
+        co2_value --> ventilation : CO2 > Setpoint
+        co2_value --> [*] : CO2 <= Setpoint
+
+        ventilation --> [*]: Ventilation Done
+    }
+
+    temperature --> monitoring : Done
+}
+
+state "Door" as door {
+    state "Closed" as door_closed: The door is closed
+    state "Open" as door_open: The door is opened
+
+    door_closed --> door_open : open
+    door_open --> door_closed : close
+
+    [*] --> door_closed
+}
+
+@enduml
