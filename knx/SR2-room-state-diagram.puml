@@ -1,104 +1,86 @@
 @startuml
-title SR2 Room State Diagram
+title SRA2 Room State Diagram
 
-state "Blinds" as blinds {
-    state "Idle" as blinds_idle
-    state "Open" as blinds_open
-    state "Closed" as blinds_closed
-    state "Adjusting" as blinds_adjusting
+[*] --> Dead
 
-    [*] --> blinds_idle
-    blinds_idle --> blinds_closed : Initially closed
-    blinds_idle --> blinds_open : Initially open
-    blinds_idle --> blinds_adjusting : Adjust Blinds
+state "System running" as SR
 
-    blinds_closed --> blinds_open : Open Blinds
-    blinds_open --> blinds_closed : Close Blinds
-    blinds_open --> blinds_adjusting : Adjust Blinds
-    blinds_closed --> blinds_adjusting : Adjust Blinds
-    blinds_adjusting --> blinds_open : Blinds Opened
-    blinds_adjusting --> blinds_closed : Blinds Closed
-}
+Dead --> SR : powerOn
+SR --> Dead : powerOff
 
-state "IrradiationSensor" as irradiation_sensor {
-    state "No Irradiation" as no_irradiation
-    state "Low Irradiation" as low_irradiation
-    state "High Irradiation" as high_irradiation
+state SR {
 
-    [*] --> no_irradiation
-    no_irradiation --> low_irradiation : Sensor Detects Low Sunlight
-    low_irradiation --> high_irradiation : Sensor Detects High Sunlight
-    low_irradiation --> no_irradiation : Sensor No Sunlight
-    high_irradiation --> low_irradiation : Sensor Detects Low Sunlight
-}
+  state "Presence Sensor" as PS {
+     state "Enabled" as sensor_enabled {
+      state "No presence" as no_presence
+      state "Presence" as presence
 
-irradiation_sensor.low_irradiation --> lights.light_on : Turn On Lights Automatically
-irradiation_sensor.low_irradiation --> blinds.blinds_closed : Close Blinds Automatically
-irradiation_sensor.high_irradiation --> lights.light_off : Turn Off Lights Automatically
-irradiation_sensor.high_irradiation --> blinds.blinds_open : Open Blinds Automatically
+      [*] --> no_presence : (init)
 
-
-state "Light" as lights {
-    state "Off" as light_off: Lights in the room are off
-    state "On" as light_on: Lights in the room are on
-
-    light_off --> light_on : turn on
-    light_on --> light_off : turn off
-
-    [*] --> light_off
-}
-
-state "Presence Sensor" as presence {
-    state "No Presence" as no_presence: No one is in the room
-    state "Presence Detected" as presence_detected: People are in the room
-
-    presence_detected --> no_presence : Room Empty
-    no_presence --> presence_detected : Person Enters
-
-    [*] --> no_presence
-}
-
-no_presence --> lights.light_off : turn off lights
-
-state "HVAC" as hvac {
-    state "Monitoring the Room" as monitoring: Monitoring the room temperature and CO2
-    [*] --> monitoring
-    monitoring --> temperature : Watch Setpoints
-
-    state "HVAC System" as temperature {
-        state temperature_value <<choice>>
-        state "Heating" as heating: Room will be heated up until setpoint reached
-        state "Cooling" as cooling: Room will be cooled down until setpoint reached
-
-        [*] --> temperature_value
-        temperature_value --> heating : Indoor Temp < Setpoint
-        temperature_value --> cooling : Indoor Temp > Setpoint
-        temperature_value --> [*] : Indoor Temp = Setpoint
-        heating --> [*]: Heating Done
-        cooling --> [*]: Cooling Done
-
-        --
-
-        state co2_value <<choice>>
-        state "Ventilation" as ventilation: Room will be ventilated until setpoint reached
-        [*] --> co2_value
-        co2_value --> ventilation : CO2 > Setpoint
-        co2_value --> [*] : CO2 <= Setpoint
-
-        ventilation --> [*]: Ventilation Done
+      no_presence --> presence : presence \n/emit presenceDetected()
+      presence --> no_presence : noPresence \n/emit presenceLost()
     }
 
-    temperature --> monitoring : Done
+    [*] --> sensor_enabled : (init)
+
+    state "Disabled" as sensor_disabled
+    sensor_disabled --> sensor_enabled : enableSensor \n/receive brightnessEvent_turnOn()
+    sensor_enabled --> sensor_disabled : disableSensor \n/receive brightnessEvent_turnOff()
+  }
+
+  --
+
+  state "Light Control" as LC {
+    state "Lights off" as lights_off
+    state "Lights on" as lights_on
+
+    [*] --> lights_off : (init)
+    lights_off --> lights_on : switch lights on \n/receive presenceDetected()
+    lights_off --> lights_on : switch lights on \n/receive brightnessEvent_turnOn()
+    lights_on --> lights_off : switch lights off \n/receive presenceLost()
+    lights_on --> lights_off : switch lights off \n/receive brightnessEvent_turnOff()
+  }
+
+  --
+
+  state "Weather Module" as WM {
+    state "Measuring brightness" as measuring_brightness {
+        state "Brightness for lights and presence sensor" as brightness {
+            state "Below threshold" as below_threshold_l_and_ps
+            state "Above threshold" as above_threshold_l_and_ps
+
+            [*] --> below_threshold_l_and_ps : (init)
+            below_threshold_l_and_ps --> above_threshold_l_and_ps : brightness >= 60 \n/ emit brightnessEvent_turnOff()
+            above_threshold_l_and_ps --> below_threshold_l_and_ps : brightness < 60 \n/ emit brightnessEvent_turnOn()
+        }
+
+        ||
+
+        state "Brightness for blinds" as brightness_blinds {
+            state "Below threshold" as below_threshold_blinds
+            state "Above threshold" as above_threshold_blinds
+
+            [*] --> below_threshold_blinds : (init)
+            below_threshold_blinds --> above_threshold_blinds : brightness >= 65 \n/ emit brightnessEvent_blindsDown()
+            above_threshold_blinds --> below_threshold_blinds : brightness < 65 \n/ emit brightnessEvent_blindsUp()
+        }
+
+    }
+
+    [*] --> measuring_brightness : (init)
+  }
+
+  --
+
+  state "Blinds Control" as BC {
+    state "Blinds up" as blinds_up
+    state "Blinds down" as blinds_down
+
+    [*] --> blinds_up : (init)
+    blinds_up --> blinds_down : blindsDown \n/receive brightnessEvent_blindsDown()
+    blinds_down --> blinds_up : blindsUp \n/receive brightnessEvent_blindsUp()
+  }
 }
-
-state "Door" as door {
-    state "Closed" as door_closed: The door is closed
-    state "Open" as door_open: The door is opened
-
-    door_closed --> door_open : open
-    door_open --> door_closed : close
-
-    [*] --> door_closed
-}
-
 @enduml
+
+
