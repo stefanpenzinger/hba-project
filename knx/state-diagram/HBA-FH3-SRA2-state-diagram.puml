@@ -1,10 +1,10 @@
 @startuml
 title SRA2 Room State Diagram
 
-[*] --> Dead
-
+state Dead
 state "System running" as SR
 
+[*] --> Dead: (init)
 Dead --> SR : powerOn
 SR --> Dead : powerOff
 
@@ -45,7 +45,7 @@ state SR {
 
   state "Weather Module" as WM {
     state "Measuring brightness" as measuring_brightness {
-        state "Brightness for lights and presence sensor" as brightness {
+        state "Brightness for lights and presence sensor" as brightness_l_and_ps {
             state "Below threshold" as below_threshold_l_and_ps
             state "Above threshold" as above_threshold_l_and_ps
 
@@ -53,6 +53,8 @@ state SR {
             below_threshold_l_and_ps --> above_threshold_l_and_ps : brightness >= 60 \n/ emit brightnessEvent_turnOff()
             above_threshold_l_and_ps --> below_threshold_l_and_ps : brightness < 60 \n/ emit brightnessEvent_turnOn()
         }
+
+        [*] --> brightness_l_and_ps : (init)
 
         ||
 
@@ -65,6 +67,7 @@ state SR {
             above_threshold_blinds --> below_threshold_blinds : brightness < 65 \n/ emit brightnessEvent_blindsUp()
         }
 
+        [*] --> brightness_blinds : (init)
     }
 
     [*] --> measuring_brightness : (init)
@@ -79,6 +82,31 @@ state SR {
     [*] --> blinds_up : (init)
     blinds_up --> blinds_down : blindsDown \n/receive brightnessEvent_blindsDown()
     blinds_down --> blinds_up : blindsUp \n/receive brightnessEvent_blindsUp()
+    blinds_down --> blinds_up : blindsUp \n/receive fireOrSmokeDetectedEvent()
+  }
+
+  --
+
+  state "Fire/Smoke Detector" as FD {
+       state "Measuring smoke" as measuring_smoke {
+            state "No smoke detected" as no_smoke_detected
+            state "Smoke detected" as smoke_detected
+
+            [*] --> no_smoke_detected : (init)
+            no_smoke_detected --> smoke_detected : smoke_detected \n/emit fireOrSmokeDetectedEvent()
+            smoke_detected --> no_smoke_detected : Acknowledge manually
+       }
+
+       ||
+
+       state "Measuring fire" as measuring_fire {
+            state "No fire detected" as no_fire_detected
+            state "Fire detected" as fire_detected
+
+            [*] --> no_fire_detected : (init)
+            no_fire_detected --> fire_detected : fire_detected \n/emit fireOrSmokeDetectedEvent()
+            fire_detected --> no_fire_detected : Acknowledge manually
+       }
   }
 }
 @enduml
