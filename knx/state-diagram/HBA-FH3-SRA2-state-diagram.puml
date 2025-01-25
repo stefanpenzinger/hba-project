@@ -6,7 +6,8 @@ state "System running" as SR
 
 [*] --> Dead: (init)
 Dead --> SR : powerOn
-SR --> Dead : powerOff
+SR --> Dead : powerOff manually
+SR --> Dead : powerOff \n/receive fireOrSmokeDetectedEvent()
 
 state SR {
 
@@ -18,14 +19,14 @@ state SR {
       [*] --> no_presence : (init)
 
       no_presence --> presence : presence \n/emit presenceDetected()
-      presence --> no_presence : noPresence \n/emit presenceLost()
+      presence --> no_presence : no presence \n/emit presenceLost()
     }
 
     [*] --> sensor_enabled : (init)
 
     state "Disabled" as sensor_disabled
-    sensor_disabled --> sensor_enabled : enableSensor \n/receive brightnessEvent_turnOn()
-    sensor_enabled --> sensor_disabled : disableSensor \n/receive brightnessEvent_turnOff()
+    sensor_disabled --> sensor_enabled : enable sensor \n/receive brightnessEvent_turnOn()
+    sensor_enabled --> sensor_disabled : disable sensor \n/receive brightnessEvent_turnOff()
   }
 
   --
@@ -80,33 +81,38 @@ state SR {
     state "Blinds down" as blinds_down
 
     [*] --> blinds_up : (init)
-    blinds_up --> blinds_down : blindsDown \n/receive brightnessEvent_blindsDown()
-    blinds_down --> blinds_up : blindsUp \n/receive brightnessEvent_blindsUp()
-    blinds_down --> blinds_up : blindsUp \n/receive fireOrSmokeDetectedEvent()
+    blinds_up --> blinds_down : blinds down \n/receive brightnessEvent_blindsDown()
+    blinds_down --> blinds_up : blinds up \n/receive brightnessEvent_blindsUp()
+    blinds_down --> blinds_up : blinds up \n/receive fireOrSmokeDetectedEvent()
   }
 
   --
 
   state "Fire/Smoke Detector" as FD {
-       state "Measuring smoke" as measuring_smoke {
-            state "No smoke detected" as no_smoke_detected
-            state "Smoke detected" as smoke_detected
+    state "Measuring smoke" as measuring_smoke {
+         state "No smoke detected" as no_smoke_detected
+         state "Smoke detected" as smoke_detected
 
-            [*] --> no_smoke_detected : (init)
-            no_smoke_detected --> smoke_detected : smoke_detected \n/emit fireOrSmokeDetectedEvent()
-            smoke_detected --> no_smoke_detected : Acknowledge manually
-       }
+         [*] --> no_smoke_detected : (init)
+         no_smoke_detected --> smoke_detected : smoke detected \n/emit fireOrSmokeDetectedEvent()
+         smoke_detected --> no_smoke_detected : Acknowledge manually
+    }
 
-       ||
+    [*] --> measuring_smoke : (init)
 
-       state "Measuring fire" as measuring_fire {
-            state "No fire detected" as no_fire_detected
-            state "Fire detected" as fire_detected
+    ||
 
-            [*] --> no_fire_detected : (init)
-            no_fire_detected --> fire_detected : fire_detected \n/emit fireOrSmokeDetectedEvent()
-            fire_detected --> no_fire_detected : Acknowledge manually
-       }
+    state "Measuring fire" as measuring_fire {
+         state "No fire detected" as no_fire_detected
+         state "Fire detected" as fire_detected
+
+         [*] --> no_fire_detected : (init)
+         no_fire_detected --> fire_detected : fire detected \n/emit fireOrSmokeDetectedEvent()
+         fire_detected --> no_fire_detected : Acknowledge manually
+    }
+
+
+    [*] --> measuring_fire : (init)
   }
 }
 @enduml
