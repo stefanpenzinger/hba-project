@@ -2,11 +2,16 @@
 title SR2 Room State Diagram
 
 state "Blinds" as blinds {
+    state "Idle" as blinds_idle
     state "Open" as blinds_open
     state "Closed" as blinds_closed
     state "Adjusting" as blinds_adjusting
 
-    [*] --> blinds_closed
+    [*] --> blinds_idle
+    blinds_idle --> blinds_closed : Initially closed
+    blinds_idle --> blinds_open : Initially open
+    blinds_idle --> blinds_adjusting : Adjust Blinds
+
     blinds_closed --> blinds_open : Open Blinds
     blinds_open --> blinds_closed : Close Blinds
     blinds_open --> blinds_adjusting : Adjust Blinds
@@ -34,8 +39,8 @@ irradiation_sensor.high_irradiation --> blinds.blinds_open : Open Blinds Automat
 
 
 state "Light" as lights {
-    state "Off" as light_off
-    state "On" as light_on
+    state "Off" as light_off: Lights in the room are off
+    state "On" as light_on: Lights in the room are on
 
     light_off --> light_on : turn on
     light_on --> light_off : turn off
