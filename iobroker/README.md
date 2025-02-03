@@ -22,7 +22,7 @@ http://localhost:8081
 - aWATTar
     - Adapt cron interval
 - MQTT Broker/Server
-- Scripting Enginge
+- Scripting Engine
 
 
 ## MQTT Subscription
