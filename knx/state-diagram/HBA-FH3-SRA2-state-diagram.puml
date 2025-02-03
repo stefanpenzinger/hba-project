@@ -72,6 +72,22 @@ state SR {
     }
 
     [*] --> measuring_brightness : (init)
+
+    ||
+
+    state "Temperature for HVAC" as temperature_hvac{
+        state "Below threshold" as below_threshold_hvac
+        state "Status Deadband" as equals_threshold_hvac
+        state "Above threshold" as above_threshold_hvac
+
+        [*] --> equals_threshold_hvac : (init)
+        below_threshold_hvac --> equals_threshold_hvac : temperature = 22 \n/ emit temperatureEvent_statusDeadband()
+        equals_threshold_hvac --> above_threshold_hvac : temperature > 22 \n/ emit temperatureEvent_statusHeat()
+        equals_threshold_hvac --> below_threshold_hvac : temperature < 22 \n/ emit temperatureEvent_statusCool()
+        above_threshold_hvac --> equals_threshold_hvac : temperature = 22 \n/ emit temperatureEvent_statusDeadband()
+
+    }
+    [*] --> temperature_hvac : (init)
   }
 
   --
@@ -114,7 +130,54 @@ state SR {
 
     [*] --> measuring_fire : (init)
   }
+--
+
+  state "HVAC Control" as HVAC {
+
+      state "Measuring room temperature" as measure_temp {
+        state "Heating" as heating
+        state "Cooling" as cooling
+        state "Deadband" as deadband
+
+        [*] --> deadband : (init)
+        deadband --> heating : temperature < 21 && \n/receive temperatureEvent_statusHeat()
+        deadband --> cooling : temperature > 21 && \n/receive temperatureEvent_statusCool()
+        heating --> deadband : temperature >= 21 \n/receive temperatureEvent_statusDeadband()
+        cooling --> deadband : temperature <= 21\n/receive temperatureEvent_statusDeadband()
+      }
+      [*] --> measure_temp : (init)
+
+      ||
+
+      state "Ventilation" as ventilation {
+        state "Off" as vent_off
+        state "On" as vent_on
+
+        [*] --> vent_off : (init)
+        vent_off --> vent_on : CO2 level high
+        vent_on --> vent_off : CO2 level normal
+      }
+      [*] --> ventilation : (init)
+
+      ||
+
+      state "Humidity Control" as humidity_control {
+        state "Humidifying" as humidifying
+        state "Dehumidifying" as dehumidifying
+        state "Stable" as humidity_stable
+
+        [*] --> humidity_stable : (init)
+        humidity_stable --> humidifying : humidity < 40
+        humidity_stable --> dehumidifying : humidity > 60
+        humidifying --> humidity_stable : humidity >= 40
+        dehumidifying --> humidity_stable : humidity <= 60
+      }
+      [*] --> humidity_control : (init)
+  }
+
 }
+
 @enduml
+
 
 
