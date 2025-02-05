@@ -93,11 +93,16 @@ state SR {
   --
 
   state "Blinds Control" as BC {
+    state "Blinds stop" as blinds_stop
     state "Blinds up" as blinds_up
     state "Blinds down" as blinds_down
 
-    [*] --> blinds_up : (init)
+    [*] --> blinds_stop : (init)
+    blinds_stop --> blinds_up : blinds up \n/receive brightnessEvent_blindsUp()
+    blinds_stop --> blinds_down : blinds down \n/receive brightnessEvent_blindsDown()
+    blinds_up --> blinds_stop : blinds stop \n/receive brightnessEvent_blindsStop()
     blinds_up --> blinds_down : blinds down \n/receive brightnessEvent_blindsDown()
+    blinds_down --> blinds_stop : blinds stop \n/receive brightnessEvent_blindsStop()
     blinds_down --> blinds_up : blinds up \n/receive brightnessEvent_blindsUp()
     blinds_down --> blinds_up : blinds up \n/receive fireOrSmokeDetectedEvent()
   }
