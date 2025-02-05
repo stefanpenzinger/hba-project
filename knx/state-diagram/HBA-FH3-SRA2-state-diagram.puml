@@ -4,7 +4,7 @@ title SRA2 Room State Diagram
 state Dead
 state "System running" as SR
 
-[*] --> Dead: (init)
+[*] --> Dead
 Dead --> SR : powerOn
 SR --> Dead : powerOff manually
 SR --> Dead : powerOff \n/receive fireOrSmokeDetectedEvent()
@@ -16,18 +16,20 @@ state SR {
       state "No presence" as no_presence
       state "Presence" as presence
 
-      [*] --> no_presence : (init)
+      [*] --> no_presence
 
       no_presence --> presence : presence \n/emit presenceDetected()
       presence --> no_presence : no presence \n/emit presenceLost()
     }
 
-    [*] --> sensor_enabled : (init)
+    [*] --> sensor_enabled
 
     state "Disabled" as sensor_disabled
     sensor_disabled --> sensor_enabled : enable sensor \n/receive brightnessEvent_turnOn()
     sensor_enabled --> sensor_disabled : disable sensor \n/receive brightnessEvent_turnOff()
   }
+
+  [*] --> PS
 
   --
 
@@ -35,12 +37,14 @@ state SR {
     state "Lights off" as lights_off
     state "Lights on" as lights_on
 
-    [*] --> lights_off : (init)
+    [*] --> lights_off
     lights_off --> lights_on : switch lights on \n/receive presenceDetected()
     lights_off --> lights_on : switch lights on \n/receive brightnessEvent_turnOn()
     lights_on --> lights_off : switch lights off \n/receive presenceLost()
     lights_on --> lights_off : switch lights off \n/receive brightnessEvent_turnOff()
   }
+
+  [*] --> LC
 
   --
 
@@ -50,12 +54,12 @@ state SR {
             state "Below threshold" as below_threshold_l_and_ps
             state "Above threshold" as above_threshold_l_and_ps
 
-            [*] --> below_threshold_l_and_ps : (init)
+            [*] --> below_threshold_l_and_ps
             below_threshold_l_and_ps --> above_threshold_l_and_ps : brightness >= 60 \n/ emit brightnessEvent_turnOff()
             above_threshold_l_and_ps --> below_threshold_l_and_ps : brightness < 60 \n/ emit brightnessEvent_turnOn()
         }
 
-        [*] --> brightness_l_and_ps : (init)
+        [*] --> brightness_l_and_ps
 
         ||
 
@@ -63,15 +67,15 @@ state SR {
             state "Below threshold" as below_threshold_blinds
             state "Above threshold" as above_threshold_blinds
 
-            [*] --> below_threshold_blinds : (init)
+            [*] --> below_threshold_blinds
             below_threshold_blinds --> above_threshold_blinds : brightness >= 65 \n/ emit brightnessEvent_blindsDown()
             above_threshold_blinds --> below_threshold_blinds : brightness < 65 \n/ emit brightnessEvent_blindsUp()
         }
 
-        [*] --> brightness_blinds : (init)
+        [*] --> brightness_blinds
     }
 
-    [*] --> measuring_brightness : (init)
+    [*] --> measuring_brightness
 
     ||
 
@@ -80,15 +84,17 @@ state SR {
         state "Status Deadband" as equals_threshold_hvac
         state "Above threshold" as above_threshold_hvac
 
-        [*] --> equals_threshold_hvac : (init)
+        [*] --> equals_threshold_hvac
         below_threshold_hvac --> equals_threshold_hvac : temperature = 22 \n/ emit temperatureEvent_statusDeadband()
         equals_threshold_hvac --> above_threshold_hvac : temperature > 22 \n/ emit temperatureEvent_statusHeat()
         equals_threshold_hvac --> below_threshold_hvac : temperature < 22 \n/ emit temperatureEvent_statusCool()
         above_threshold_hvac --> equals_threshold_hvac : temperature = 22 \n/ emit temperatureEvent_statusDeadband()
 
     }
-    [*] --> temperature_hvac : (init)
+    [*] --> temperature_hvac
   }
+
+  [*] --> WM
 
   --
 
@@ -97,7 +103,7 @@ state SR {
     state "Blinds up" as blinds_up
     state "Blinds down" as blinds_down
 
-    [*] --> blinds_stop : (init)
+    [*] --> blinds_stop
     blinds_stop --> blinds_up : blinds up \n/receive brightnessEvent_blindsUp()
     blinds_stop --> blinds_down : blinds down \n/receive brightnessEvent_blindsDown()
     blinds_up --> blinds_stop : blinds stop \n/receive brightnessEvent_blindsStop()
@@ -114,12 +120,12 @@ state SR {
          state "No smoke detected" as no_smoke_detected
          state "Smoke detected" as smoke_detected
 
-         [*] --> no_smoke_detected : (init)
+         [*] --> no_smoke_detected
          no_smoke_detected --> smoke_detected : smoke detected \n/emit fireOrSmokeDetectedEvent()
          smoke_detected --> no_smoke_detected : Acknowledge manually
     }
 
-    [*] --> measuring_smoke : (init)
+    [*] --> measuring_smoke
 
     ||
 
@@ -127,14 +133,17 @@ state SR {
          state "No fire detected" as no_fire_detected
          state "Fire detected" as fire_detected
 
-         [*] --> no_fire_detected : (init)
+         [*] --> no_fire_detected
          no_fire_detected --> fire_detected : fire detected \n/emit fireOrSmokeDetectedEvent()
          fire_detected --> no_fire_detected : Acknowledge manually
     }
 
 
-    [*] --> measuring_fire : (init)
+    [*] --> measuring_fire
   }
+
+  [*] --> FD
+
 --
 
   state "HVAC Control" as HVAC {
@@ -144,13 +153,13 @@ state SR {
         state "Cooling" as cooling
         state "Deadband" as deadband
 
-        [*] --> deadband : (init)
+        [*] --> deadband
         deadband --> heating : temperature < 21 && \n/receive temperatureEvent_statusHeat()
         deadband --> cooling : temperature > 21 && \n/receive temperatureEvent_statusCool()
         heating --> deadband : temperature >= 21 \n/receive temperatureEvent_statusDeadband()
         cooling --> deadband : temperature <= 21\n/receive temperatureEvent_statusDeadband()
       }
-      [*] --> measure_temp : (init)
+      [*] --> measure_temp
 
       ||
 
@@ -158,11 +167,11 @@ state SR {
         state "Off" as vent_off
         state "On" as vent_on
 
-        [*] --> vent_off : (init)
+        [*] --> vent_off
         vent_off --> vent_on : CO2 level high
         vent_on --> vent_off : CO2 level normal
       }
-      [*] --> ventilation : (init)
+      [*] --> ventilation
 
       ||
 
@@ -171,14 +180,16 @@ state SR {
         state "Dehumidifying" as dehumidifying
         state "Stable" as humidity_stable
 
-        [*] --> humidity_stable : (init)
+        [*] --> humidity_stable
         humidity_stable --> humidifying : humidity < 40
         humidity_stable --> dehumidifying : humidity > 60
         humidifying --> humidity_stable : humidity >= 40
         dehumidifying --> humidity_stable : humidity <= 60
       }
-      [*] --> humidity_control : (init)
+      [*] --> humidity_control
   }
+
+  [*] --> HVAC
 
 }
 
